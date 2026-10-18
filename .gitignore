@@ -1,0 +1,8 @@
+target/
+.bsp/
+.metals/
+.bloop/
+.idea/
+project/project/
+project/target/
+node_modules/
