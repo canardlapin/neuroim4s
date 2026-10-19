@@ -28,6 +28,15 @@ lazy val spatial4sBuild = pinned("spatial4s", spatial4sRevision)
 lazy val spatial4sCoreJVM = ProjectRef(spatial4sBuild, "spatial4s-coreJVM")
 lazy val spatial4sCoreJS = ProjectRef(spatial4sBuild, "spatial4s-coreJS")
 
+lazy val image4sRevision = "ba7ca3dae7181b4b3267b2d3220f0c50f06b93df"
+lazy val image4sBuild = {
+  sys.props.get("neuroim4s.spatial4s.build")
+    .foreach(System.setProperty("image4s.spatial4s.build", _))
+  pinned("image4s", image4sRevision)
+}
+lazy val image4sGeometryJVM = ProjectRef(image4sBuild, "image4s-geometryJVM")
+lazy val image4sGeometryJS = ProjectRef(image4sBuild, "image4s-geometryJS")
+
 lazy val commonSettings = Seq(
   scalacOptions ++= Seq(
     "-deprecation",
@@ -59,11 +68,26 @@ lazy val spaces =
     .jsConfigure(_.dependsOn(spatial4sCoreJS))
     .jsSettings(jsSettings)
 
+// Neuroimaging policy; image4s remains the sole geometry representation.
+// This module does not depend on ScalaFIM or its surface/atlas/MVPA integrations.
+lazy val core =
+  crossProject(JSPlatform, JVMPlatform)
+    .crossType(CrossType.Full)
+    .in(file("modules/neuroim4s-core"))
+    .settings(commonSettings)
+    .settings(
+      name := "neuroim4s-core",
+      description := "Neuroimaging policy over provider-owned image geometry."
+    )
+    .jvmConfigure(_.dependsOn(image4sGeometryJVM))
+    .jsConfigure(_.dependsOn(image4sGeometryJS))
+    .jsSettings(jsSettings)
+
 lazy val root =
   project
     .in(file("."))
-    .aggregate(spaces.jvm, spaces.js)
+    .aggregate(spaces.jvm, spaces.js, core.jvm, core.js)
     .settings(name := "neuroim4s-root", publish / skip := true)
 
 addCommandAlias("neuroim4sCompileAll", ";root/compile;root/Test/compile")
-addCommandAlias("neuroim4sTestAll", ";spacesJVM/test;spacesJS/test")
+addCommandAlias("neuroim4sTestAll", ";spacesJVM/test;spacesJS/test;coreJVM/test;coreJS/test")
