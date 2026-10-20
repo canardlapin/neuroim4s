@@ -18,6 +18,8 @@ val voxelSizes = Affine.identity[D3].neuroVoxelSizes // Vector(1.0, 1.0, 1.0)
 |---|---|---|---|
 | `neuroim4s-core` | `neuroim4s.image` | Typed volumes and time series, ordered selections, masks, sampling, orientation, reslicing and image statistics | spaces, image4s, locus4s, Ravel, Gale, reframe4s |
 | `neuroim4s-io` (JVM) | `neuroim4s.image.io` | NIfTI anatomical admission and bounded volume/series IO | core, image4s NIfTI |
+| `neuroim4s-transform` | `neuroim4s.transform` | ITK/ANTs, FSL, AFNI, FreeSurfer and X5 codecs, anatomical interpretation and conversion | core, image4s NIfTI, reframe4s |
+| `neuroim4s-transform-io` (JVM) | `neuroim4s.transform` | File/gzip entry point, ITK HDF5 and X5 containers | transform, jHDF |
 | `neuroim4s-spaces` | `neuroim4s.spaces` | Anatomical world identities (`WorldSpace`: template, subject scanner-RAS, subject tkRAS, declared, unresolved), their persistent RAS-millimetre frames (`FrameCatalog`, `Spaces`), and NIfTI/GIFTI xform-code space resolution (`SpaceResolver`) | spatial4s |
 
 `neuroim4s-spaces` is deliberately small so volume, surface and atlas libraries
@@ -67,12 +69,30 @@ provider ownership and Time-axis refusal, is executable in
 [`ImageWorkflowSuite`](modules/neuroim4s-core/shared/src/test/scala/external/neuroim/consumer/ImageWorkflowSuite.scala).
 It imports only public APIs from outside the library package.
 
+Transforms retain their typed source/target frames. Their pullback always exists;
+a dense field has no forward map unless an inverse asset or a qualified numerical
+inverse supplies it. ITK LPS, FSL scaled-voxel and FreeSurfer scanner/tkRAS
+interpretation remains explicit policy. Numerical maps, composition, inversion
+and resampling use reframe4s; there is no copied solver. Raw NIfTI bytes and
+uninterpreted metadata belong to image4s `Nifti1Container`/`Nifti1Writer`.
+`neuroim4s-transform` has no file, HDF5, surface, atlas, MVPA or ScalaFIM dependency,
+including in its tests. The optional JVM container module supplies platform IO.
+
+The public [`TransformCompositionSuite`](modules/neuroim4s-transform/shared/src/test/scala/consumer/registration/TransformCompositionSuite.scala)
+shows two toolkit registrations composed once, with literal independent LPS/RAS
+reference coordinates and explicit refusal of an unavailable forward direction.
+Native-tool fixture bytes, writer goldens and persisted provenance strings keep
+their original identities. ScalaFIM owns its downstream ScenarioHarness workflows in its unpublished
+provider admission tests.
+
 ## Build
 
 Scala 3.7.4, sbt 1.11.7, Node.js for the Scala.js tests.
 
 ```sh
 sbt -J-Xmx4g neuroim4sTestAll
+# Focused portable transform and optional JVM-container gates:
+sbt -J-Xmx4g transformJVM/test transformJS/test transformIoJVM/test
 ```
 
 Providers are pinned to immutable revisions in `build.sbt`. For coordinated

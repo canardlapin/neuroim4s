@@ -43,7 +43,10 @@ object FrameErasureGate {
   /** Files where frame erasure is the point, with the reason recorded next to each entry in build.sbt. Paths are
     * relative to the repository root, so a same-named file elsewhere is still checked.
     */
-  val Allowlist: Set[String] = Set.empty
+  val Allowlist: Set[String] = Set(
+    // Toolkit composite stages have runtime intermediate frames; StageChain checks owners and restores typed endpoints.
+    "modules/neuroim4s-transform/shared/src/main/scala/neuroim4s/transform/StageChain.scala"
+  )
 
   final case class Violation(path: String, line: Int, text: String) {
     override def toString: String = s"$path:$line: $text"

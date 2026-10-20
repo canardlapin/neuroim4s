@@ -28,7 +28,7 @@ lazy val spatial4sBuild = pinned("spatial4s", spatial4sRevision)
 lazy val spatial4sCoreJVM = ProjectRef(spatial4sBuild, "spatial4s-coreJVM")
 lazy val spatial4sCoreJS = ProjectRef(spatial4sBuild, "spatial4s-coreJS")
 
-lazy val image4sRevision = "7885f67798242412800a448eda68acfbfff4f751"
+lazy val image4sRevision = "aef5e223169f0831c942694c4b109ab20d152217"
 lazy val image4sBuild = {
   Seq("spatial4s", "locus4s", "gale", "ravel").foreach { provider =>
     sys.props.get(s"neuroim4s.$provider.build")
@@ -45,12 +45,13 @@ lazy val image4sLocusJVM = ProjectRef(image4sBuild, "image4s-locusJVM")
 lazy val image4sLocusJS = ProjectRef(image4sBuild, "image4s-locusJS")
 lazy val image4sFilterJVM = ProjectRef(image4sBuild, "image4s-filterJVM")
 lazy val image4sFilterJS = ProjectRef(image4sBuild, "image4s-filterJS")
+lazy val image4sNiftiJS = ProjectRef(image4sBuild, "image4s-niftiJS")
 lazy val image4sNiftiJVM = ProjectRef(image4sBuild, "image4s-niftiJVM")
 lazy val galeRevision = "779ed3d8169cdd9f4eb9ab10b1ca9defadc27715"
 lazy val galeBuild = pinned("gale", galeRevision)
 lazy val galeCoreJVM = ProjectRef(galeBuild, "coreJVM")
 lazy val galeCoreJS = ProjectRef(galeBuild, "coreJS")
-lazy val reframe4sRevision = "e4df73969e1fccb7aa0153a9203927c6dd8b0e3d"
+lazy val reframe4sRevision = "7ec7feff96d4057a86196b5e86d592688b7c7f84"
 lazy val reframe4sBuild = {
   Seq("image4s", "spatial4s", "gale", "ravel", "locus4s").foreach { provider =>
     sys.props.get(s"neuroim4s.$provider.build")
@@ -64,6 +65,7 @@ lazy val reframe4sFieldJVM = ProjectRef(reframe4sBuild, "reframe4s-fieldJVM")
 lazy val reframe4sFieldJS = ProjectRef(reframe4sBuild, "reframe4s-fieldJS")
 lazy val reframe4sResampleJVM = ProjectRef(reframe4sBuild, "reframe4s-resampleJVM")
 lazy val reframe4sResampleJS = ProjectRef(reframe4sBuild, "reframe4s-resampleJS")
+lazy val transformBoundaryCheck = taskKey[Unit]("Preserve portable toolkit interpretation and frame ownership")
 lazy val coreBoundaryCheck = taskKey[Unit]("Preserve frame ownership and prevent public provider-state facades")
 
 lazy val commonSettings = Seq(
@@ -142,11 +144,59 @@ lazy val ioJVM = project
   .settings(commonSettings)
   .settings(name := "neuroim4s-io")
 
+// Toolkit codecs and anatomical interpretation remain portable; no file/HDF5 or ScalaFIM dependency.
+lazy val transform =
+  crossProject(JSPlatform, JVMPlatform)
+    .crossType(CrossType.Full)
+    .in(file("modules/neuroim4s-transform"))
+    .dependsOn(core)
+    .settings(commonSettings)
+    .settings(
+      name := "neuroim4s-transform",
+      scalacOptions ++= Seq("-Werror", "-Wunused:all", "-Wvalue-discard"),
+      libraryDependencies += "org.scalameta" %%% "munit-scalacheck" % "1.1.0" % Test,
+      transformBoundaryCheck := {
+        val repository = (LocalRootProject / baseDirectory).value
+        FrameErasureGate.selfTest()
+        val violations = FrameErasureGate.check(repository)
+        if (violations.nonEmpty) sys.error(violations.mkString("Frame erasure:\n", "\n", ""))
+        val sharedMain = repository / "modules/neuroim4s-transform/shared/src/main/scala"
+        val platformLeaks = (sharedMain ** "*.scala").get.filter { source =>
+          "\\bjava\\.(?:io|nio)\\b|\\bio\\.jhdf\\b|\\bscala\\.io\\.Source\\b".r.findFirstIn(IO.read(source)).nonEmpty
+        }
+        if (platformLeaks.nonEmpty) sys.error(s"Shared transform sources use platform IO: ${platformLeaks.mkString(", ")}")
+      },
+      Compile / compile := (Compile / compile).dependsOn(transformBoundaryCheck).value
+    )
+    .jvmConfigure(_.dependsOn(image4sNiftiJVM))
+    .jsConfigure(_.dependsOn(image4sNiftiJS))
+    .jsSettings(jsSettings)
+    .jsSettings(
+      Test / sourceGenerators += Def.task {
+        val out = (Test / sourceManaged).value / "OracleResourceLocation.scala"
+        val resources = (LocalRootProject / baseDirectory).value / "modules/neuroim4s-transform/shared/src/test/resources"
+        val escaped = resources.getAbsolutePath.replace("\\", "\\\\").replace("\"", "\\\"")
+        IO.write(out, "package neuroim4s.transform.oracle\nprivate[oracle] object OracleResourceLocation:\n  val root: String = \"" + escaped + "\"\n")
+        Seq(out)
+      }.taskValue
+    )
+
+// Optional JVM containers: gzip/files, ITK HDF5 and X5. Portable users do not resolve jHDF.
+lazy val transformIoJVM = project
+  .in(file("modules/neuroim4s-transform-io/jvm"))
+  .dependsOn(transform.jvm % "compile->compile;test->test")
+  .settings(commonSettings)
+  .settings(
+    name := "neuroim4s-transform-io",
+    scalacOptions ++= Seq("-Werror", "-Wunused:all", "-Wvalue-discard"),
+    libraryDependencies += "io.jhdf" % "jhdf" % "0.12.0"
+  )
+
 lazy val root =
   project
     .in(file("."))
-    .aggregate(spaces.jvm, spaces.js, core.jvm, core.js, ioJVM)
+    .aggregate(spaces.jvm, spaces.js, core.jvm, core.js, ioJVM, transform.jvm, transform.js, transformIoJVM)
     .settings(name := "neuroim4s-root", publish / skip := true)
 
 addCommandAlias("neuroim4sCompileAll", ";root/compile;root/Test/compile")
-addCommandAlias("neuroim4sTestAll", ";spacesJVM/test;spacesJS/test;coreJVM/test;coreJS/test;ioJVM/test")
+addCommandAlias("neuroim4sTestAll", ";spacesJVM/test;spacesJS/test;coreJVM/test;coreJS/test;ioJVM/test;transformJVM/test;transformJS/test;transformIoJVM/test")
