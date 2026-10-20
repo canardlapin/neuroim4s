@@ -65,7 +65,7 @@ lazy val reframe4sFieldJVM = ProjectRef(reframe4sBuild, "reframe4s-fieldJVM")
 lazy val reframe4sFieldJS = ProjectRef(reframe4sBuild, "reframe4s-fieldJS")
 lazy val reframe4sResampleJVM = ProjectRef(reframe4sBuild, "reframe4s-resampleJVM")
 lazy val reframe4sResampleJS = ProjectRef(reframe4sBuild, "reframe4s-resampleJS")
-lazy val graph4sRevision = "856e6fb770cf5f4c5512b0607d8c3733e75e7460"
+lazy val graph4sRevision = "0e9133723a0d8751d5b0330a7eeedf76e8690c83"
 lazy val graph4sBuild = {
   sys.props.get("neuroim4s.gale.build").foreach(System.setProperty("graph4s.gale.build", _))
   pinned("graph4s", graph4sRevision)
