@@ -3,8 +3,8 @@
 Neuroimaging policy over the core Scala 3 imaging providers, cross-compiled to
 the JVM and Scala.js. This is pre-release development software: APIs, semantics,
 and package boundaries may change; no stable support or binary-compatibility
-promise is implied. The affine-policy core is available from source;
-no artifact release is claimed for this addition.
+promise is implied. The complete core and optional IO extraction are under development;
+no artifact release is claimed.
 
 ```scala
 import image4s.geometry.{Affine, D3}
@@ -16,7 +16,8 @@ val voxelSizes = Affine.identity[D3].neuroVoxelSizes // Vector(1.0, 1.0, 1.0)
 
 | Module | Package | Contents | Depends on |
 |---|---|---|---|
-| `neuroim4s-core` | `neuroim4s.image` | Neuroimaging affine policy: voxel spacing, obliquity and voxel-centre-preserving rescaling | image4s geometry |
+| `neuroim4s-core` | `neuroim4s.image` | Typed volumes and time series, ordered selections, masks, sampling, orientation, reslicing and image statistics | spaces, image4s, locus4s, Ravel, Gale, reframe4s |
+| `neuroim4s-io` (JVM) | `neuroim4s.image.io` | NIfTI anatomical admission and bounded volume/series IO | core, image4s NIfTI |
 | `neuroim4s-spaces` | `neuroim4s.spaces` | Anatomical world identities (`WorldSpace`: template, subject scanner-RAS, subject tkRAS, declared, unresolved), their persistent RAS-millimetre frames (`FrameCatalog`, `Spaces`), and NIfTI/GIFTI xform-code space resolution (`SpaceResolver`) | spatial4s |
 
 `neuroim4s-spaces` is deliberately small so volume, surface and atlas libraries
@@ -40,23 +41,45 @@ neuroim2 convention; it does not substitute the geometric midpoint. The moved
 implementation is unchanged apart from its package name. Portable consumer tests
 cover rotated anisotropic grids, reflections, even/odd shapes and invalid inputs.
 
-The core addition is intentionally bounded. Volume/series admission, parity APIs,
-and optional IO remain in ScalaFIM pending subsequent extraction slices. This core
-has no surface, atlas, MVPA, ScalaFIM, display or file-format dependency. Generic
-matrices, inversion and affine composition remain provider responsibilities.
+Volumes and series retain their exact image4s `Sampled` values and Ravel
+storage. `NeuroVolume.fromSampled` admits a three-dimensional image without
+trailing axes; `NeuroSeries.fromSampled` requires exactly one Time axis.
+Selections carry their locus4s owner and explicit order. Canonical ordinal reads
+use logical x/y/z order, with time varying fastest, including strided views.
+The core has no ScalaFIM, surface, atlas, MVPA, renderer or file-format dependency.
+Generic matrices, grids, axes and finite domains stay in their providers.
+
+The optional JVM IO module consumes image4s headers and codecs directly.
+`Nifti.readVolumeIn` and `readSeriesIn` bind a decoded image to anatomical world
+evidence; `Nifti.spaceIn` admits a provider header using the same affine selection
+policy as decoding. Invalid agreement tolerances now return the typed provider
+error from evidence-only calls too. Unit, scaling, disagreement and unresolved
+world checks remain explicit. Raw header reading and streaming scalar writing
+use `image4s.nifti.Nifti` directly.
+
+The portable test corpus includes neuroim2 parity fixtures and an independent
+consumer outside the library package. JVM tests retain bounded streaming and
+allocation checks. Fixture resource paths and persisted world identifiers retain
+their original spellings.
+
+A complete constructor → selection → dense-output example, including exact
+provider ownership and Time-axis refusal, is executable in
+[`ImageWorkflowSuite`](modules/neuroim4s-core/shared/src/test/scala/external/neuroim/consumer/ImageWorkflowSuite.scala).
+It imports only public APIs from outside the library package.
 
 ## Build
 
 Scala 3.7.4, sbt 1.11.7, Node.js for the Scala.js tests.
 
 ```sh
-sbt neuroim4sTestAll
+sbt -J-Xmx4g neuroim4sTestAll
 ```
 
 Providers are pinned to immutable revisions in `build.sbt`. For coordinated
 development, point a provider at a sibling checkout with
 `-Dneuroim4s.spatial4s.build=/absolute/path/to/spatial4s` or
-`-Dneuroim4s.image4s.build=/absolute/path/to/image4s`. The image4s pin matches
+`-Dneuroim4s.image4s.build=/absolute/path/to/image4s` (and equivalently
+`neuroim4s.reframe4s.build` for reframe4s). The image4s pin matches
 the ScalaFIM consumer; spatial4s overrides are forwarded into image4s so nominal
 coordinate types retain one owner throughout the graph.
 
