@@ -45,7 +45,9 @@ object FrameErasureGate {
     */
   val Allowlist: Set[String] = Set(
     // Toolkit composite stages have runtime intermediate frames; StageChain checks owners and restores typed endpoints.
-    "modules/neuroim4s-transform/shared/src/main/scala/neuroim4s/transform/StageChain.scala"
+    "modules/neuroim4s-transform/shared/src/main/scala/neuroim4s/transform/StageChain.scala",
+    // Moved runtime registration storage envelope: every endpoint/inverse composition validates provider frame owners.
+    "modules/neuroim4s-routing/shared/src/main/scala/neuroim4s/spatial/ProviderMapBinding.scala"
   )
 
   final case class Violation(path: String, line: Int, text: String) {

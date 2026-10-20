@@ -19,6 +19,8 @@ val voxelSizes = Affine.identity[D3].neuroVoxelSizes // Vector(1.0, 1.0, 1.0)
 | `neuroim4s-core` | `neuroim4s.image` | Typed volumes and time series, ordered selections, masks, sampling, orientation, reslicing and image statistics | spaces, image4s, locus4s, Ravel, Gale, reframe4s |
 | `neuroim4s-io` (JVM) | `neuroim4s.image.io` | NIfTI anatomical admission and bounded volume/series IO | core, image4s NIfTI |
 | `neuroim4s-transform` | `neuroim4s.transform` | ITK/ANTs, FSL, AFNI, FreeSurfer and X5 codecs, anatomical interpretation and conversion | core, image4s NIfTI, reframe4s |
+| `neuroim4s-routing` | `neuroim4s.spatial` | Anatomical volume admission, registration routes, sampling and scoped execution | core, transform, graph4s algorithms |
+| `neuroim4s-routing-io` (JVM) | `neuroim4s.spatial.io` | Lazy, freshness-checked, bounded NIfTI reads | routing, io |
 | `neuroim4s-transform-io` (JVM) | `neuroim4s.transform` | File/gzip entry point, ITK HDF5 and X5 containers | transform, jHDF |
 | `neuroim4s-spaces` | `neuroim4s.spaces` | Anatomical world identities (`WorldSpace`: template, subject scanner-RAS, subject tkRAS, declared, unresolved), their persistent RAS-millimetre frames (`FrameCatalog`, `Spaces`), and NIfTI/GIFTI xform-code space resolution (`SpaceResolver`) | spatial4s |
 
@@ -106,3 +108,33 @@ coordinate types retain one owner throughout the graph.
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
+
+## Anatomical volume routing
+
+Use `neuroim4s-routing` when a volume workflow needs registration routes and
+ordered nearest/trilinear sampling. It uses provider-owned frames and grids,
+caller-owned node/registration IDs, and reframe4s maps; it has no surface, atlas,
+response or dataset dependency. `VolumeReference` names native and template
+volumes. `VolumeGrid.from` checks D3 admission and mask congruence once.
+
+`VolumeGraph.path` prefers an available forward route and then, when enabled,
+tries geometric inverses with an explicit quality penalty. `VolumeExecution`
+compiles ordered target rows into one Gale sparse sampling pass. A
+`VolumeSource` supplies only the source support and observations requested by
+materialization, in request order. Typed failures retain missing domains/maps,
+wrong frame owners, unsampled endpoints and source availability.
+
+`neuroim4s-routing-io` adds `NiftiVolumeSource` on JVM. Preparing it does no IO;
+the first validation pins the file revision. Later changes are stale, and every
+read closes its channel before returning. Compressed sources require explicit
+staging. Portable routing never resolves this platform module.
+
+The executable public examples and independent analytic/binary witnesses live
+in `consumer.volume` suites under the routing modules. Run them with:
+
+```sh
+sbt -J-Xmx4g routingJVM/test routingJS/test routingIoJVM/test
+```
+
+`neuroim4s.graph4s.build` supports an explicit local graph4s checkout override
+for coordinated development, just like the existing provider overrides.

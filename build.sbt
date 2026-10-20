@@ -65,6 +65,14 @@ lazy val reframe4sFieldJVM = ProjectRef(reframe4sBuild, "reframe4s-fieldJVM")
 lazy val reframe4sFieldJS = ProjectRef(reframe4sBuild, "reframe4s-fieldJS")
 lazy val reframe4sResampleJVM = ProjectRef(reframe4sBuild, "reframe4s-resampleJVM")
 lazy val reframe4sResampleJS = ProjectRef(reframe4sBuild, "reframe4s-resampleJS")
+lazy val graph4sRevision = "856e6fb770cf5f4c5512b0607d8c3733e75e7460"
+lazy val graph4sBuild = {
+  sys.props.get("neuroim4s.gale.build").foreach(System.setProperty("graph4s.gale.build", _))
+  pinned("graph4s", graph4sRevision)
+}
+lazy val graph4sAlgorithmsJVM = ProjectRef(graph4sBuild, "algorithmsJVM")
+lazy val graph4sAlgorithmsJS = ProjectRef(graph4sBuild, "algorithmsJS")
+lazy val routingBoundaryCheck = taskKey[Unit]("Preserve volume-only routing and portable execution boundaries")
 lazy val transformBoundaryCheck = taskKey[Unit]("Preserve portable toolkit interpretation and frame ownership")
 lazy val coreBoundaryCheck = taskKey[Unit]("Preserve frame ownership and prevent public provider-state facades")
 
@@ -192,11 +200,50 @@ lazy val transformIoJVM = project
     libraryDependencies += "io.jhdf" % "jhdf" % "0.12.0"
   )
 
+// Optional anatomical volume routing and execution. Surface/atlas/functional integrations remain downstream.
+lazy val routing =
+  crossProject(JSPlatform, JVMPlatform)
+    .crossType(CrossType.Full)
+    .in(file("modules/neuroim4s-routing"))
+    .dependsOn(core, transform)
+    .settings(commonSettings)
+    .settings(
+      name := "neuroim4s-routing",
+      scalacOptions ++= Seq("-Werror", "-Wunused:all", "-Wvalue-discard"),
+      routingBoundaryCheck := {
+        val repository = (LocalRootProject / baseDirectory).value
+        val shared = repository / "modules/neuroim4s-routing/shared/src"
+        val sources = (shared ** "*.scala").get
+        val forbidden = "\\b(?:scalafim|neuroatlas4s|neurosurf4s)\\.|\\bjava\\.(?:io|nio)\\b|\\bscala\\.io\\.Source\\b".r
+        if (forbidden.findFirstIn("import scalafim.spatial.Domain").isEmpty ||
+            forbidden.findFirstIn("import java.nio.file.Path").isEmpty)
+          sys.error("Routing boundary detector did not recognize its refusal witnesses")
+        val violations = sources.filter(source => forbidden.findFirstIn(IO.read(source)).nonEmpty)
+        if (violations.nonEmpty) sys.error(s"Volume routing boundary violations: ${violations.mkString(", ")}")
+        val frameViolations = FrameErasureGate.check(repository)
+        if (frameViolations.nonEmpty) sys.error(frameViolations.mkString("Frame erasure:\n", "\n", ""))
+      },
+      Compile / compile := (Compile / compile).dependsOn(routingBoundaryCheck).value
+    )
+    .jvmConfigure(_.dependsOn(graph4sAlgorithmsJVM))
+    .jsConfigure(_.dependsOn(graph4sAlgorithmsJS))
+    .jsSettings(jsSettings)
+
+// Scoped NIfTI reads are optional; portable routing never resolves platform IO.
+lazy val routingIoJVM = project
+  .in(file("modules/neuroim4s-routing-io/jvm"))
+  .dependsOn(routing.jvm, ioJVM)
+  .settings(commonSettings)
+  .settings(
+    name := "neuroim4s-routing-io",
+    scalacOptions ++= Seq("-Werror", "-Wunused:all", "-Wvalue-discard")
+  )
+
 lazy val root =
   project
     .in(file("."))
-    .aggregate(spaces.jvm, spaces.js, core.jvm, core.js, ioJVM, transform.jvm, transform.js, transformIoJVM)
+    .aggregate(spaces.jvm, spaces.js, core.jvm, core.js, ioJVM, transform.jvm, transform.js, transformIoJVM, routing.jvm, routing.js, routingIoJVM)
     .settings(name := "neuroim4s-root", publish / skip := true)
 
 addCommandAlias("neuroim4sCompileAll", ";root/compile;root/Test/compile")
-addCommandAlias("neuroim4sTestAll", ";spacesJVM/test;spacesJS/test;coreJVM/test;coreJS/test;ioJVM/test;transformJVM/test;transformJS/test;transformIoJVM/test")
+addCommandAlias("neuroim4sTestAll", ";spacesJVM/test;spacesJS/test;coreJVM/test;coreJS/test;ioJVM/test;transformJVM/test;transformJS/test;transformIoJVM/test;routingJVM/test;routingJS/test;routingIoJVM/test")
