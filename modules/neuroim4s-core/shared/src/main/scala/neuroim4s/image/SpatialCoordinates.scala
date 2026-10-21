@@ -14,7 +14,8 @@ import image4s.geometry.GeometryError
 import image4s.geometry.Grid
 import image4s.geometry.Point
 import scala.annotation.targetName
-import neuroim4s.image.world.{Rebind, ToolCoordinates}
+import neuroim4s.image.world.ToolCoordinates
+import neuroim4s.spaces.{Placed, Rebind}
 import neuroim4s.spaces.SpaceError
 
 object SpatialCoordinates:
@@ -398,6 +399,14 @@ final class GridSpec[F <: Frame[D3]] private (private val space: SampleSpace[F, 
     s"GridSpec(dims=$dims, frame=$frame)"
 
 object GridSpec:
+  /** Package this grid at its existing owner, retaining the exact grid and sample space. */
+  def placed[F <: Frame[D3]](value: GridSpec[F]): Either[SpaceError, Placed[GridSpec]] =
+    placedAt(value.frame)(value)
+
+  /** Capture a runtime frame type after checking the grid's actual owner. This does not rebind or copy geometry. */
+  def placedAt[F <: Frame[D3]](frame: F)(value: GridSpec[F]): Either[SpaceError, Placed[GridSpec]] =
+    Placed.capture[F, GridSpec](frame)(value, value.frame)
+
   /** Retain a provider grid and its frame type. */
   def fromGrid[F <: Frame[D3]](grid: Grid[F, D3]): GridSpec[F] =
     new GridSpec(SampleSpace.create(grid, NonSpatialAxes.empty))

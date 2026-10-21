@@ -1,14 +1,12 @@
-package neuroim4s.image.world
+package neuroim4s.spaces
 
-import neuroim4s.spaces.*
-import image4s.geometry.{D3, Frame, FrameAlignment, Point, Vec}
-import neuroim4s.image.GridSpec
+import spatial4s.{D3, Frame, FrameAlignment, Point, Vec}
 
 /** A frame-indexed value whose frame is known only at runtime: a dependent pair.
   *
   * The frame is a type member `F`, and the value is typed at exactly that member (`V[F]`), so a value cannot be
-  * packaged with a frame it does not belong to. Values from runtime decoders, whose frame type is an existential
-  * (`GridSpec[?]`), package through [[Placed.of]] by capture. Code without a static target works inside `placed.F`;
+  * packaged with a frame it does not belong to. Point and vector values with existential frame types package through [[Placed.of]] by capture.
+  * Provider-specific families capture ownership inside their own modules. Code without a static target works inside `placed.F`;
   * [[Placed.bindTo]] retypes the value to a statically known frame after image4s checks that the two frames share a
   * persistent key.
   *
@@ -26,16 +24,18 @@ object Placed:
   def apply[V[_ <: Frame[D3]]](frame: Frame[D3])(value: V[frame.type]): Either[SpaceError, Placed[V]] =
     FrameCatalog.worldOf(frame).map(world => pack[V, frame.type](frame, world, value))
 
-  /** Package a value typed at the frame type `F`, including an existential one captured from a runtime decoder:
-    * {{{
-    * val decoded: GridSpec[?] = ...
-    * Placed.of(decoded.frame)(decoded)
-    * }}}
-    * Because `F` may be a wide type such as `Frame[D3]`, the static types alone do not prove that `value` belongs to
-    * `frame`; the value's own runtime frame owner is therefore checked against `frame` as well.
-    */
+  /** Package a point or vector at its captured frame type, checking the runtime owner even when `F0` is wide. */
   def of[F0 <: Frame[D3], V[_ <: Frame[D3]]](frame: F0)(value: V[F0])(using owned: FrameOwned[V]): Either[SpaceError, Placed[V]] =
-    if !owned.frameOf(value).sameRuntimeOwnerAs(frame) then
+    capture(frame)(value, owned.frameOf(value))
+
+  /** Trusted provider boundary: capture the existing frame type and value without narrowing or rebuilding it.
+    * Callers must supply the value's sole actual frame owner. Keep this internal: a public caller must not be able
+    * to fabricate ownership evidence by passing an unrelated owner callback or frame.
+    */
+  private[neuroim4s] def capture[F0 <: Frame[D3], V[_ <: Frame[D3]]](frame: F0)(
+      value: V[F0], actualOwner: F0
+  ): Either[SpaceError, Placed[V]] =
+    if !actualOwner.sameRuntimeOwnerAs(frame) then
       Left(SpaceError.FrameBinding("the value's frame owner is not the frame it is being packaged with"))
     else FrameCatalog.worldOf(frame).map(world => pack[V, F0](frame, world, value))
 
@@ -69,9 +69,6 @@ object FrameOwned:
 
   given vectors: FrameOwned[Rebind.VecIn] with
     def frameOf[F <: Frame[D3]](value: Vec[F, D3]): F = value.frame
-
-  given grids: FrameOwned[GridSpec] with
-    def frameOf[F <: Frame[D3]](value: GridSpec[F]): F = value.frame
 
 /** Moves a frame-indexed value across a checked frame alignment. */
 trait Rebind[V[_ <: Frame[D3]]]:

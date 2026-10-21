@@ -1,9 +1,7 @@
-package neuroim4s.image.world
+package neuroim4s.spaces
 
-import neuroim4s.spaces.*
-import image4s.geometry.{D3, Frame, Point}
-import reframe4s.lie.FramedAffine
-import neuroim4s.image.world.Rebind.PointIn
+import spatial4s.{D3, Frame, Point}
+import neuroim4s.spaces.Rebind.PointIn
 
 class PlacedSuite extends munit.FunSuite:
   private def ok[E, A](result: Either[E, A]): A =
@@ -48,10 +46,3 @@ class PlacedSuite extends munit.FunSuite:
     val errors = compileErrors("val p: Point[Spaces.Mni2009c, D3] = placed.value")
     assert(errors.contains("Found:"), errors)
 
-  test("maps between different world frames cannot be composed out of order"):
-    val native = FrameCatalog.frame(subject)
-    val toMni = FramedAffine.identity(native)
-    val mniToMni6 = FramedAffine.between(Spaces.MNI152NLin2009cAsym, Spaces.MNI152NLin6Asym)(image4s.geometry.Affine.identity[D3])
-    val errors = compileErrors("toMni.andThen(mniToMni6)")
-    assert(errors.nonEmpty, "composing native->native with MNI2009c->MNI6 must not compile")
-    assertNoDiff(compileErrors("mniToMni6.andThen(FramedAffine.identity(Spaces.MNI152NLin6Asym))"), "")

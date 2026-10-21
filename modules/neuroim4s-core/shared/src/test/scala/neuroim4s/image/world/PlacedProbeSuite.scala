@@ -1,12 +1,13 @@
 package neuroim4s.image.world
 
 import scala.compiletime.testing.typeCheckErrors
+import neuroim4s.spaces.Placed
 
 /** Compiler facts the frame-typing design relies on, probed with `typeCheckErrors` so a compiler or provider change
   * that invalidates one fails here rather than silently changing which encodings are sound.
   */
 class PlacedProbeSuite extends munit.FunSuite:
-  test("a runtime-decoded GridSpec[?] packages only through Placed.of, not the singleton-typed Placed.apply"):
+  test("a runtime-decoded GridSpec[?] packages only through GridSpec.placed, not the singleton-typed Placed.apply"):
     val viaApply = typeCheckErrors(
       """
         import neuroim4s.image.GridSpec
@@ -19,14 +20,14 @@ class PlacedProbeSuite extends munit.FunSuite:
       viaApply.exists(e => e.message.contains("Found:    (decoded : neuroim4s.image.GridSpec[?])") && e.message.contains("Required: neuroim4s.image.GridSpec[")),
       clue = viaApply.map(_.message)
     )
-    val viaOf = typeCheckErrors(
+    val viaCapture = typeCheckErrors(
       """
         import neuroim4s.image.GridSpec
         val decoded: GridSpec[?] = GridSpec.identity(Vector(2, 2, 2))
-        Placed.of(decoded.frame)(decoded)
+        GridSpec.placed(decoded)
       """
     )
-    assertEquals(viaOf.map(_.message), Nil)
+    assertEquals(viaCapture.map(_.message), Nil)
 
   test("an existential Sampled cannot be rebound through SamplingAlignment.exact, so plans re-wrap instead"):
     val errors = typeCheckErrors(

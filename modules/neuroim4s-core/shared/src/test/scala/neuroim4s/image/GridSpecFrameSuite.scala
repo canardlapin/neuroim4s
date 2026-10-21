@@ -5,7 +5,7 @@ import image4s.geometry.D3
 import image4s.geometry.Frame
 import image4s.geometry.Grid
 import scala.compiletime.testing.typeCheckErrors
-import neuroim4s.image.world.Placed
+import neuroim4s.spaces.Placed
 import neuroim4s.spaces.Spaces
 
 class GridSpecFrameSuite extends munit.FunSuite:
@@ -144,25 +144,56 @@ class GridSpecFrameSuite extends munit.FunSuite:
 
     assert(placed.bindTo(Spaces.fsaverage).isLeft, clue = "binding to a different world must fail")
 
-  test("Placed.of packages a runtime-decoded GridSpec[?] and binds it to the static template frame"):
+  test("GridSpec.placed packages a runtime-decoded GridSpec[?] and binds it to the static template frame"):
     val decodedFrame = neuroim4s.spaces.FrameCatalog.frame(
       neuroim4s.spaces.FrameCatalog.worldOf(Spaces.MNI152NLin2009cAsym).toOption.get
     )
     val decoded: GridSpec[?] = GridSpec.in(decodedFrame)(shape, affine).fold(error => fail(error.message), identity)
-    val placed = Placed.of(decoded.frame)(decoded).fold(error => fail(error.message), identity)
+    val placed = GridSpec.placed(decoded).fold(error => fail(error.message), identity)
     assert(placed.frame eq decoded.frame)
     val bound: GridSpec[Spaces.Mni2009c] =
       placed.bindTo(Spaces.MNI152NLin2009cAsym).fold(error => fail(error.message), identity)
     assertEquals(bound.affine, decoded.affine)
     assert(placed.bindTo(Spaces.fsaverage).isLeft)
 
-  test("Placed.of checks the value's runtime frame owner when its static frame type is wide"):
+  test("GridSpec.placedAt checks the value's runtime frame owner when its static frame type is wide"):
     val subjectFrame = neuroim4s.spaces.FrameCatalog.frame(neuroim4s.spaces.WorldSpace.declare("subject").toOption.get)
     val wide: GridSpec[Frame[D3]] =
       GridSpec.fromGrid(Grid.forFrame[D3, Frame[D3]](subjectFrame)(shape.toVector, affine).fold(error => fail(error.message), identity))
     val mni: Frame[D3] = Spaces.MNI152NLin2009cAsym
-    assert(Placed.of[Frame[D3], GridSpec](mni)(wide).isLeft, clue = "a subject grid must not be packaged as an MNI grid")
-    assert(Placed.of[Frame[D3], GridSpec](subjectFrame)(wide).isRight)
+    assert(GridSpec.placedAt[Frame[D3]](mni)(wide).isLeft, clue = "a subject grid must not be packaged as an MNI grid")
+    assert(GridSpec.placedAt[Frame[D3]](subjectFrame)(wide).isRight)
+
+  test("grid packaging preserves the exact live value, grid and sample space, with or without a persistent id"):
+    val frame = neuroim4s.spaces.FrameCatalog.frame(neuroim4s.spaces.WorldSpace.declare("grid-capture").toOption.get)
+    val id = image4s.geometry.GridId.parse("grid-capture-persistent").toOption.get
+    val persistent = Grid.createPersistent(id, frame)(shape.toVector, affine).fold(error => fail(error.message), identity)
+    val ephemeral = Grid.in(frame)(shape.toVector, affine).fold(error => fail(error.message), identity)
+    for original <- Vector(GridSpec.fromGrid(persistent), GridSpec.fromGrid(ephemeral)) do
+      val packaged = GridSpec.placed(original).fold(error => fail(error.message), identity)
+      val retained = packaged.value
+      assert(retained eq original)
+      assert(retained.grid eq original.grid)
+      assert(retained.sampleSpace eq original.sampleSpace)
+      assert(retained == original)
+      assertEquals(retained.hashCode(), original.hashCode())
+      assertEquals(retained.grid.shape, original.grid.shape)
+      assertEquals(retained.affine.rowMajor, original.affine.rowMajor)
+      assertEquals(retained.grid.persistentId, original.grid.persistentId)
+      assertEquals(retained.grid.record, original.grid.record)
+
+  test("grid capture refuses distinct owners even when persistent world keys agree"):
+    val world = neuroim4s.spaces.WorldSpace.declare("same-world-distinct-owner").toOption.get
+    val actual: Frame[D3] = neuroim4s.spaces.FrameCatalog.frame(world)
+    val other: Frame[D3] = neuroim4s.spaces.FrameCatalog.frame(world)
+    assert(!actual.sameRuntimeOwnerAs(other))
+    assertEquals(actual.persistentKey, other.persistentKey)
+    val original = GridSpec.fromGrid(Grid.forFrame[D3, Frame[D3]](actual)(shape.toVector, affine).toOption.get)
+    assert(GridSpec.placedAt(other)(original).isLeft)
+    assert(GridSpec.placedAt(actual)(original).toOption.get.value eq original)
+    val scratch = Frame.named[D3]("not-a-world").toOption.get
+    val unknown = GridSpec.in(scratch)(shape, affine).toOption.get
+    assert(GridSpec.placed(unknown).isLeft)
 
   test("worldAligned relates grids of one world space and refuses grids of different ones"):
     val mni = mniGrid

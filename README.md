@@ -163,3 +163,8 @@ The JavaFX contract tests compile scenes and translate events without starting
 the toolkit; concrete Canvas drawing needs a separate native display witness.
 `neuroim4s.intaglio.build=/absolute/path/to/intaglio` is the explicit development
 override; ordinary builds use the exact Intaglio source revision in `build.sbt`.
+
+World placement lives in `neuroim4s.spaces`: `Placed`, `Rebind`, and the sealed
+point/vector ownership witnesses depend only on spatial4s. Runtime-decoded grids
+package through `GridSpec.placed` (or checked `placedAt`). Packaging retains the
+exact grid and sample-space owners; explicit `bindTo` remains a separate operation.
