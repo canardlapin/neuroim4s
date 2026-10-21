@@ -52,23 +52,34 @@ object NativeCanvasProbe:
       stage.setScene(new Scene(new Group(canvas), DeviceWidth, DeviceHeight))
       stage.show()
 
-      val compiled = JavaFxViewerHost
-        .renderCanvas(model, session, canvas.getGraphicsContext2D)
-        .fold(error => throw new IllegalStateException(error.message), identity)
-      val snapshot = canvas.snapshot(null, null)
-      val reader = snapshot.getPixelReader
-      val samples =
-        compiled.frame.panels.all.flatMap { panel =>
-          SampleFractions.flatMap { horizontal =>
-            SampleFractions.map { vertical =>
-              val (x, y) = devicePoint(panel, horizontal, vertical, session.device)
-              val argb = reader.getArgb(x, y)
-              requireGray(argb, panel.anatomicalPlane, x, y)
+      val planes = Vector(AnatomicalPlane.Sagittal, AnatomicalPlane.Coronal, AnatomicalPlane.Axial)
+      val focused = planes.map(plane =>
+        OrthogonalLayout.make(12.0, 8.0, OrthogonalArrangement.SinglePlane(plane),
+          OrthogonalLayoutUnits.LogicalPixels).toOption.get)
+      val layouts = Vector(OrthogonalLayout.Default, OrthogonalLayout.adaptive().toOption.get) ++ focused
+      layouts.foreach { layout =>
+        val compiled = JavaFxViewerHost
+          .renderCanvas(model, session.copy(layout = layout), canvas.getGraphicsContext2D)
+          .fold(error => throw new IllegalStateException(error.message), identity)
+        val snapshot = canvas.snapshot(null, null)
+        val reader = snapshot.getPixelReader
+        val panels = compiled.frame.visiblePanels
+        val expectedPlanes = layout.arrangement match
+          case OrthogonalArrangement.SinglePlane(plane) => Vector(plane)
+          case _ => planes
+        require(panels.map(_.anatomicalPlane) == expectedPlanes)
+        val samples =
+          panels.flatMap { panel =>
+            SampleFractions.flatMap { horizontal =>
+              SampleFractions.map { vertical =>
+                val (x, y) = devicePoint(panel, horizontal, vertical, session.device)
+                val argb = reader.getArgb(x, y)
+                requireGray(argb, panel.anatomicalPlane, x, y)
+              }
             }
           }
-        }
-
-      println(s"NativeCanvasProbe passed panels=${compiled.frame.panels.all.size} samples=${samples.size} expectedArgb=0xff808080")
+        println(s"NativeCanvasProbe passed layout=${layout.arrangement} panels=${panels.size} samples=${samples.size} expectedArgb=0xff808080")
+      }
     catch
       case error: Throwable => recordFailure(failure, error)
     finally
