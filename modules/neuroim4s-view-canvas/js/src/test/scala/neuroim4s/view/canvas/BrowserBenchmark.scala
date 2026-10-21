@@ -321,7 +321,12 @@ object BrowserBenchmark:
       picked.state.cursor,
       AnatomicalPlane.Axial.positiveNormal.unit.scaled(picked.state.sliceStep.millimeters)
     ).toOption.get
-    val axialSliceDirection = current.state.cursor == expectedCursor
+    // Provider points have owner-aware operations, not structural equals.
+    // Compare the actual movement and exact frame owner, not object identity.
+    val axialSliceDirection =
+      current.state.cursor.frame.sameRuntimeOwnerAs(expectedCursor.frame) &&
+        current.state.cursor.coordinates.zip(expectedCursor.coordinates)
+          .forall((actual, expected) => math.abs(actual - expected) <= 1e-12)
     val exercised =
       model.layers.length == 2 &&
         current.state.cursor != initial.session.state.cursor &&

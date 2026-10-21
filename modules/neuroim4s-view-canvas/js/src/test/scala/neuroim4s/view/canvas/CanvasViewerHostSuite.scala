@@ -86,9 +86,15 @@ class CanvasViewerHostSuite extends munit.FunSuite:
     val deviceX = (panel.rect.left + panel.rect.width / 2.0) * session.device.width
     val deviceY = (1.0 - panel.rect.bottom - panel.rect.height / 2.0) * session.device.height
     controller.pick(deviceX, deviceY).toOption.get
+    val picked = controller.session.toOption.get.state.cursor
     controller.scroll(deviceX, deviceY, 1).toOption.get
 
     val changed = controller.compile().toOption.get
+    val moved = changed.frame.state.cursor
+    assert(moved.frame.sameRuntimeOwnerAs(picked.frame))
+    assertEqualsDouble(moved.coordinates(0), picked.coordinates(0), 1e-12)
+    assertEqualsDouble(moved.coordinates(1), picked.coordinates(1), 1e-12)
+    assertEqualsDouble(moved.coordinates(2), picked.coordinates(2) + session.state.sliceStep.millimeters, 1e-12)
     assertEquals(changed.frame.state.panelViews.axial, zoom)
     assertEquals(changed.frame.state.presentation(layer.id).threshold, Some(threshold))
     assertEquals(changed.frame.readouts.axial.layers.map(_.layer), Vector(layer.id))
