@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "source_revision": "df06363c1d8c24576436725fdf6a3f0747e5af8e",
+  "qualification": {
+    "spaces": {
+      "jvm_passed": 31,
+      "js_passed": 31,
+      "log": "01"
+    },
+    "core": {
+      "jvm_passed": 334,
+      "js_passed": 333,
+      "log": "02"
+    },
+    "total_passed": 729,
+    "skipped": 0,
+    "failed": 0
+  },
+  "review": {
+    "reviewer": "volume_view_astra_review",
+    "verdict": "APPROVE bounded source changes",
+    "production_blobs": {
+      "spaces/Placed.scala": "033680f4ec3a1785b48ba8449ee5ac19211b710f",
+      "image/SpatialCoordinates.scala": "c34ba23e4bb191e58734f77b58e5e6bc2d528829"
+    }
+  },
+  "retained_adverse_evidence": "01 spaces passed both platforms, then core test compilation found missing D3 import in moved affine composition witness; import fixed before 02.",
+  "limits": "Root consumers have not cut over; optional surface provider is in preparation. No full graph or hosted CI claim.",
+  "logs": [
+    {
+      "path": "neuroim4s-eco-u5-placement-01.log.gz",
+      "raw_sha256": "eb76972e368f2c550c62db146b6ef161836739e822059425df975edb94a0c3ed",
+      "metadata": {
+        "schema_version": 1,
+        "started_utc": "2026-10-21T17:28:30.457937+00:00",
+        "finished_utc": "2026-10-21T17:31:36.881098+00:00",
+        "duration_seconds": 186.416729,
+        "command": [
+          "env",
+          "JAVA_HOME=/Users/bbuchsbaum/Library/Java/JavaVirtualMachines/openjdk-22/Contents/Home",
+          "SBT_WARM_HEAP=3g",
+          "python3",
+          "/Users/bbuchsbaum/code/scala/scalafim-eco-mesh-kernels-20261020/tools/build/sbt-warm",
+          "spacesJVM/test",
+          "spacesJS/test",
+          "coreJVM/testOnly neuroim4s.image.GridSpecFrameSuite neuroim4s.image.world.PlacedProbeSuite neuroim4s.image.world.FramedAffineCompositionSuite example.ExternalPlacementBoundarySuite",
+          "coreJS/testOnly neuroim4s.image.GridSpecFrameSuite neuroim4s.image.world.PlacedProbeSuite neuroim4s.image.world.FramedAffineCompositionSuite example.ExternalPlacementBoundarySuite"
+        ],
+        "cwd": "/Users/bbuchsbaum/code/scala/neuroim4s-eco-u5-20261021",
+        "log": "/tmp/neuroim4s-eco-u5-placement-01.log",
+        "exit_code": 1,
+        "child_returncode": 1,
+        "reason": "exited",
+        "detail": null,
+        "timeout_seconds": 1800.0,
+        "log_bytes": 21753
+      }
+    },
+    {
+      "path": "neuroim4s-eco-u5-placement-02.log.gz",
+      "raw_sha256": "f053c55a17da33994e364204224f274c4be77fda88e41c25ed7e465d7ab401d0",
+      "metadata": {
+        "schema_version": 1,
+        "started_utc": "2026-10-21T17:32:09.068530+00:00",
+        "finished_utc": "2026-10-21T17:33:14.300410+00:00",
+        "duration_seconds": 65.230905,
+        "command": [
+          "env",
+          "JAVA_HOME=/Users/bbuchsbaum/Library/Java/JavaVirtualMachines/openjdk-22/Contents/Home",
+          "SBT_WARM_HEAP=3g",
+          "python3",
+          "/Users/bbuchsbaum/code/scala/scalafim-eco-mesh-kernels-20261020/tools/build/sbt-warm",
+          "coreJVM/test",
+          "coreJS/test"
+        ],
+        "cwd": "/Users/bbuchsbaum/code/scala/neuroim4s-eco-u5-20261021",
+        "log": "/tmp/neuroim4s-eco-u5-placement-02.log",
+        "exit_code": 0,
+        "child_returncode": 0,
+        "reason": "exited",
+        "detail": null,
+        "timeout_seconds": 2400.0,
+        "log_bytes": 59273
+      }
+    }
+  ]
+}
