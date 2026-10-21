@@ -4,6 +4,6 @@
 
 Run its tests with:
 
-+```sh
-python3 tools/build/sbt-warm viewJavafxJVM/test
+```sh
+sbt -J-Xmx4g viewJavafxJVM/test
 ```

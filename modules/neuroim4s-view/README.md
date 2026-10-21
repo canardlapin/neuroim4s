@@ -6,6 +6,6 @@ Optional render providers live in `neuroim4s-view-canvas`, `neuroim4s-view-java2
 
 Run its shared suite on both platforms with:
 
-+```sh
-python3 tools/build/sbt-warm viewJVM/test viewJS/test
+```sh
+sbt -J-Xmx4g viewJVM/test viewJS/test
 ```
