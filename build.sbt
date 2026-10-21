@@ -23,12 +23,12 @@ def pinned(provider: String, revision: String): URI =
     .map(path => file(path).getCanonicalFile.toURI)
     .getOrElse(uri(s"https://github.com/canardlapin/$provider.git#$revision"))
 
-lazy val spatial4sRevision = "77037a7e6ced044b92d0a70b713c0a32a94f680d"
+lazy val spatial4sRevision = "f79674114dc5f1f88866708b74f7ea42e59895a8"
 lazy val spatial4sBuild = pinned("spatial4s", spatial4sRevision)
 lazy val spatial4sCoreJVM = ProjectRef(spatial4sBuild, "spatial4s-coreJVM")
 lazy val spatial4sCoreJS = ProjectRef(spatial4sBuild, "spatial4s-coreJS")
 
-lazy val image4sRevision = "aef5e223169f0831c942694c4b109ab20d152217"
+lazy val image4sRevision = "855a3a61029f78e975b43cd1736de1c94180c004"
 lazy val image4sBuild = {
   Seq("spatial4s", "locus4s", "gale", "ravel").foreach { provider =>
     sys.props.get(s"neuroim4s.$provider.build")
@@ -51,7 +51,7 @@ lazy val galeRevision = "779ed3d8169cdd9f4eb9ab10b1ca9defadc27715"
 lazy val galeBuild = pinned("gale", galeRevision)
 lazy val galeCoreJVM = ProjectRef(galeBuild, "coreJVM")
 lazy val galeCoreJS = ProjectRef(galeBuild, "coreJS")
-lazy val reframe4sRevision = "7ec7feff96d4057a86196b5e86d592688b7c7f84"
+lazy val reframe4sRevision = "622ab31f97bbe30a9bc6436464f3124643856f47"
 lazy val reframe4sBuild = {
   Seq("image4s", "spatial4s", "gale", "ravel", "locus4s").foreach { provider =>
     sys.props.get(s"neuroim4s.$provider.build")
