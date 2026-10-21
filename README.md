@@ -22,6 +22,10 @@ val voxelSizes = Affine.identity[D3].neuroVoxelSizes // Vector(1.0, 1.0, 1.0)
 | `neuroim4s-routing` | `neuroim4s.spatial` | Anatomical volume admission, registration routes, sampling and scoped execution | core, transform, graph4s algorithms |
 | `neuroim4s-routing-io` (JVM) | `neuroim4s.spatial.io` | Lazy, freshness-checked, bounded NIfTI reads | routing, io |
 | `neuroim4s-transform-io` (JVM) | `neuroim4s.transform` | File/gzip entry point, ITK HDF5 and X5 containers | transform, jHDF |
+| `neuroim4s-view` | `neuroim4s.view` | Portable slice scenes, layered display, cursor, cache and pure interaction | core, Intaglio core |
+| `neuroim4s-view-canvas` (JS) | `neuroim4s.view.canvas` | Browser Canvas host and controller | view, Intaglio Canvas |
+| `neuroim4s-view-java2d` (JVM) | `neuroim4s.view.java2d` | Java2D drawing and buffered images | view, Intaglio Java2D |
+| `neuroim4s-view-javafx` (JVM) | `neuroim4s.view.javafx` | JavaFX Canvas host | view, Intaglio JavaFX, OpenJFX Provided |
 | `neuroim4s-spaces` | `neuroim4s.spaces` | Anatomical world identities (`WorldSpace`: template, subject scanner-RAS, subject tkRAS, declared, unresolved), their persistent RAS-millimetre frames (`FrameCatalog`, `Spaces`), and NIfTI/GIFTI xform-code space resolution (`SpaceResolver`) | spatial4s |
 
 `neuroim4s-spaces` is deliberately small so volume, surface and atlas libraries
@@ -138,3 +142,24 @@ sbt -J-Xmx4g routingJVM/test routingJS/test routingIoJVM/test
 
 `neuroim4s.graph4s.build` supports an explicit local graph4s checkout override
 for coordinated development, just like the existing provider overrides.
+
+## Optional volume views
+
+Use `neuroim4s-view` for orthogonal slice scenes and pure interaction. Colorizers,
+display windows, thresholds and drawing commands come directly from Intaglio.
+The core, spaces, routing, transform and IO modules do not depend on the view
+projects or any renderer. Platform hosts do not own application listeners,
+threads, stages or browser lifecycle.
+
+See [the viewer guide](docs/image-viewer.md) and the
+[browser workflow](docs/benchmarks/image-view-browser.md). Run bounded gates with:
+
+```sh
+sbt -J-Xmx4g viewJVM/test viewJava2dJVM/test viewJavafxJVM/test
+sbt -J-Xmx4g viewJS/test viewCanvasJS/test
+```
+
+The JavaFX contract tests compile scenes and translate events without starting
+the toolkit; concrete Canvas drawing needs a separate native display witness.
+`neuroim4s.intaglio.build=/absolute/path/to/intaglio` is the explicit development
+override; ordinary builds use the exact Intaglio source revision in `build.sbt`.

@@ -72,6 +72,26 @@ lazy val graph4sBuild = {
 }
 lazy val graph4sAlgorithmsJVM = ProjectRef(graph4sBuild, "algorithmsJVM")
 lazy val graph4sAlgorithmsJS = ProjectRef(graph4sBuild, "algorithmsJS")
+
+// Rendering is optional: none of the image, transform or routing modules
+// depends on these projects. Intaglio owns color and drawing primitives.
+lazy val intaglioRevision = "d553c327824f9916b1c0a055226c6c5e8f77bc59"
+lazy val intaglioBuild = pinned("intaglio", intaglioRevision)
+lazy val intaglioCoreJVM = ProjectRef(intaglioBuild, "coreJVM")
+lazy val intaglioCoreJS = ProjectRef(intaglioBuild, "coreJS")
+lazy val intaglioCanvasJS = ProjectRef(intaglioBuild, "canvasJS")
+lazy val intaglioJava2dJVM = ProjectRef(intaglioBuild, "java2dJVM")
+lazy val intaglioJavafxJVM = ProjectRef(intaglioBuild, "javafxJVM")
+lazy val javafxVersion = sys.props.getOrElse("intaglio.javafx.version", "21.0.5")
+lazy val javafxPlatformClassifier: String = {
+  val os = sys.props.getOrElse("os.name", "").toLowerCase
+  val arch = sys.props.getOrElse("os.arch", "").toLowerCase
+  val base =
+    if (os.contains("mac")) "mac"
+    else if (os.contains("win")) "win"
+    else "linux"
+  if (arch.contains("aarch64") && base != "win") base + "-aarch64" else base
+}
 lazy val routingBoundaryCheck = taskKey[Unit]("Preserve volume-only routing and portable execution boundaries")
 lazy val transformBoundaryCheck = taskKey[Unit]("Preserve portable toolkit interpretation and frame ownership")
 lazy val coreBoundaryCheck = taskKey[Unit]("Preserve frame ownership and prevent public provider-state facades")
@@ -239,11 +259,58 @@ lazy val routingIoJVM = project
     scalacOptions ++= Seq("-Werror", "-Wunused:all", "-Wvalue-discard")
   )
 
+// Portable volume slice scenes and interaction; platform drawing stays optional.
+lazy val view =
+  crossProject(JSPlatform, JVMPlatform)
+    .crossType(CrossType.Full)
+    .in(file("modules/neuroim4s-view"))
+    .dependsOn(core)
+    .settings(commonSettings)
+    .settings(name := "neuroim4s-view")
+    .jvmConfigure(_.dependsOn(intaglioCoreJVM))
+    .jsConfigure(_.dependsOn(intaglioCoreJS))
+    .jsSettings(jsSettings)
+
+lazy val viewCanvas =
+  crossProject(JSPlatform)
+    .crossType(CrossType.Full)
+    .in(file("modules/neuroim4s-view-canvas"))
+    .dependsOn(view)
+    .settings(commonSettings)
+    .settings(name := "neuroim4s-view-canvas")
+    .jsConfigure(_.dependsOn(intaglioCanvasJS))
+    .jsSettings(jsSettings)
+
+lazy val viewJava2d =
+  crossProject(JVMPlatform)
+    .crossType(CrossType.Full)
+    .in(file("modules/neuroim4s-view-java2d"))
+    .dependsOn(view)
+    .settings(commonSettings)
+    .settings(name := "neuroim4s-view-java2d")
+    .jvmConfigure(_.dependsOn(intaglioJava2dJVM))
+
+lazy val viewJavafx =
+  crossProject(JVMPlatform)
+    .crossType(CrossType.Full)
+    .in(file("modules/neuroim4s-view-javafx"))
+    .dependsOn(view)
+    .settings(commonSettings)
+    .settings(
+      name := "neuroim4s-view-javafx",
+      libraryDependencies ++= Seq(
+        "org.openjfx" % "javafx-base" % javafxVersion % Provided classifier javafxPlatformClassifier,
+        "org.openjfx" % "javafx-graphics" % javafxVersion % Provided classifier javafxPlatformClassifier
+      )
+    )
+    .jvmConfigure(_.dependsOn(intaglioJavafxJVM))
+
 lazy val root =
   project
     .in(file("."))
-    .aggregate(spaces.jvm, spaces.js, core.jvm, core.js, ioJVM, transform.jvm, transform.js, transformIoJVM, routing.jvm, routing.js, routingIoJVM)
+    .aggregate(spaces.jvm, spaces.js, core.jvm, core.js, ioJVM, transform.jvm, transform.js, transformIoJVM, routing.jvm, routing.js, routingIoJVM,
+      view.jvm, view.js, viewCanvas.js, viewJava2d.jvm, viewJavafx.jvm)
     .settings(name := "neuroim4s-root", publish / skip := true)
 
 addCommandAlias("neuroim4sCompileAll", ";root/compile;root/Test/compile")
-addCommandAlias("neuroim4sTestAll", ";spacesJVM/test;spacesJS/test;coreJVM/test;coreJS/test;ioJVM/test;transformJVM/test;transformJS/test;transformIoJVM/test;routingJVM/test;routingJS/test;routingIoJVM/test")
+addCommandAlias("neuroim4sTestAll", ";spacesJVM/test;spacesJS/test;coreJVM/test;coreJS/test;ioJVM/test;transformJVM/test;transformJS/test;transformIoJVM/test;routingJVM/test;routingJS/test;routingIoJVM/test;viewJVM/test;viewJS/test;viewCanvasJS/test;viewJava2dJVM/test;viewJavafxJVM/test")
