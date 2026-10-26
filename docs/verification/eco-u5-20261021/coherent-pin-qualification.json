@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "source_revision": "4f75c2bf141449d032f9fe3c558ef13a22a4d59f",
+  "change": "Build-only spatial4s/image4s/reframe4s pin alignment; source and placement owner checks unchanged from reviewed df06363.",
+  "qualification": {
+    "spaces_jvm_passed": 31,
+    "spaces_js_passed": 31,
+    "core_jvm_passed": 334,
+    "core_js_passed": 333,
+    "total_passed": 729,
+    "failed": 0,
+    "skipped": 0
+  },
+  "source_overrides": false,
+  "limits": "Standalone surface default-pin consumer and classpath closure pending. No transform/view/full graph claim from these four tasks.",
+  "log": {
+    "path": "neuroim4s-eco-u5-coherent-pins-01.log.gz",
+    "raw_sha256": "2f60571ecc1d18fe95976c651dbac806e5ce1ab25785e62f1b670b14508fc114",
+    "metadata": {
+      "schema_version": 1,
+      "started_utc": "2026-10-21T17:59:43.026463+00:00",
+      "finished_utc": "2026-10-21T18:03:07.127021+00:00",
+      "duration_seconds": 204.098432,
+      "command": [
+        "env",
+        "-u",
+        "JAVA_TOOL_OPTIONS",
+        "JAVA_HOME=/Users/bbuchsbaum/Library/Java/JavaVirtualMachines/openjdk-22/Contents/Home",
+        "SBT_WARM_HEAP=3g",
+        "python3",
+        "/Users/bbuchsbaum/code/scala/scalafim-eco-mesh-kernels-20261020/tools/build/sbt-warm",
+        "spacesJVM/test",
+        "spacesJS/test",
+        "coreJVM/test",
+        "coreJS/test"
+      ],
+      "cwd": "/Users/bbuchsbaum/code/scala/neuroim4s-eco-u5-pins-20261021",
+      "log": "/tmp/neuroim4s-eco-u5-coherent-pins-01.log",
+      "exit_code": 0,
+      "child_returncode": 0,
+      "reason": "exited",
+      "detail": null,
+      "timeout_seconds": 2400.0,
+      "log_bytes": 80148
+    }
+  }
+}
